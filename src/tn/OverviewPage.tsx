@@ -381,9 +381,9 @@ export function OverviewPage() {
 
       <div style={{ fontSize: 12, color: "var(--tn-fg-subtle)" }}>
         Jobs and estimates from ArboStar. Cash, payroll and expenses from
-        QuickBooks. Collections on a cash basis. Attribution follows the lead
-        source recorded at intake, first contact rather than every touch. Tap
-        Average job value to open the job drill-down.
+        QuickBooks. Collections on a cash basis. Marketing spend and return
+        come from the TreeNewal leads sheet, not from lead source at intake.
+        Tap Average job value to open the job drill-down.
       </div>
 
       {drillOpen && <JobDrill data={data} onClose={() => setDrillOpen(false)} />}

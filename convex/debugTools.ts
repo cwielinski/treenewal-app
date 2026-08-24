@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { internalAction } from "./_generated/server";
 import { callTool, arbostarGet } from "./gateway";
+import { categorize } from "./leadCategories";
 
 export const rawArbostar = internalAction({
   args: {},
@@ -417,5 +418,20 @@ export const leadSourceMaster = internalQuery({
     return [...total.entries()]
       .map(([source, count]) => ({ source, count, since2026: recent.get(source) ?? 0 }))
       .sort((a, b) => b.count - a.count);
+  },
+});
+
+/** Category totals since Jan, to advise on how many buckets are worth keeping. */
+export const categoryTotals = internalQuery({
+  args: {},
+  handler: async ctx => {
+    const leads = await ctx.db.query("leads").collect();
+    const out = new Map<string, number>();
+    for (const lead of leads) {
+      if (lead.createdAt < "2026-01-01") continue;
+      const key = categorize(lead.source);
+      out.set(key, (out.get(key) ?? 0) + 1);
+    }
+    return [...out.entries()].sort((a, b) => b[1] - a[1]);
   },
 });

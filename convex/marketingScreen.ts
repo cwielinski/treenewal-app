@@ -1,6 +1,4 @@
 import { v } from "convex/values";
-import { CATEGORY_ORDER, categorize, isPaidCategory } from "./leadCategories";
-import type { Doc } from "./_generated/dataModel";
 import { requireScreen } from "./access";
 import { authenticatedQuery } from "./functions";
 import { type PeriodKey, periodRange, todayInCentral } from "./periods";
@@ -8,13 +6,15 @@ import { type PeriodKey, periodRange, todayInCentral } from "./periods";
 /**
  * Marketing.
  *
- * Attribution follows the lead source recorded at intake, so every figure
- * here reflects first contact rather than every touch. A sold job is
- * attributed to the most recent lead its customer raised on or before the
- * day the job was sold.
+ * ArboStar lead source is NOT used here. Chris concluded on 2026-08-24 that
+ * intake attribution is unreliable: customers do not reliably know how they
+ * found TreeNewal, and ArboStar disagrees with WhatConverts. So the channel
+ * table, the raw source table and the acquisition versus relationship split
+ * were all removed rather than shown with a caveat.
  *
- * Spend, cost per lead, cost per sale and return on ad spend need Google
- * Ads. Until that is connected they read as pending rather than as zero.
+ * What is left is trustworthy: lead, estimate and job COUNTS from ArboStar,
+ * which are volume rather than attribution, revenue from invoices, and
+ * spend with every cost ratio from the leads sheet Chris maintains by hand.
  */
 
 const lineArg = v.union(v.literal("all"), v.literal("production"), v.literal("phc"));
@@ -35,15 +35,6 @@ function effectiveLine(recordLine: string | undefined): "production" | "phc" {
 function matchesLine(recordLine: string | undefined, line: Line): boolean {
   if (line === "all") return true;
   return effectiveLine(recordLine) === line;
-}
-
-/**
- * Relationship sources are the ones TreeNewal does not buy: referrals and
- * repeat customers. Everything else is acquisition.
- */
-function isRelationship(source: string): boolean {
-  const name = source.toLowerCase();
-  return name.includes("referral") || name.includes("repeat") || name.includes("refer");
 }
 
 function round(value: number, places = 1): number {
@@ -97,52 +88,6 @@ export const marketing = authenticatedQuery({
       )
       .collect();
 
-    const jobById = new Map<number, Doc<"jobs">>();
-    for (const job of jobs) jobById.set(job.arboId, job);
-
-    // ---- the intake source of each customer, over time. Only the customers
-    // that appear in this period are looked up, one indexed read each.
-    const clientIds = new Set<number>();
-    for (const job of jobs) {
-      if (
-        job.clientId !== undefined &&
-        job.createdAt >= range.start &&
-        job.createdAt <= range.end
-      ) {
-        clientIds.add(job.clientId);
-      }
-    }
-    for (const invoice of invoices) {
-      if (invoice.date < range.start || invoice.date > range.end) continue;
-      const job =
-        invoice.workOrderId === undefined
-          ? undefined
-          : jobById.get(invoice.workOrderId);
-      if (job?.clientId !== undefined) clientIds.add(job.clientId);
-    }
-
-    const leadsByClient = new Map<number, Doc<"leads">[]>();
-    for (const clientId of clientIds) {
-      const list = await ctx.db
-        .query("leads")
-        .withIndex("by_clientId", q => q.eq("clientId", clientId))
-        .collect();
-      list.sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
-      leadsByClient.set(clientId, list);
-    }
-
-    const sourceFor = (clientId: number | undefined, asOf: string): string => {
-      if (clientId === undefined) return "Not recorded";
-      const list = leadsByClient.get(clientId);
-      if (!list || list.length === 0) return "Not recorded";
-      let chosen = list[0];
-      for (const lead of list) {
-        if (lead.createdAt <= asOf) chosen = lead;
-        else break;
-      }
-      return chosen.source;
-    };
-
     // ---- the funnel for the period
     const periodLeads = periodLeadRows;
     const periodEstimates = estimates.filter(estimate =>
@@ -163,90 +108,7 @@ export const marketing = authenticatedQuery({
         matchesLine(invoice.serviceLine, line),
     );
 
-    type Row = { leads: number; sold: number; revenue: number };
-    const bySource = new Map<string, Row>();
-    const bump = (source: string, patch: Partial<Row>) => {
-      const row = bySource.get(source) ?? { leads: 0, sold: 0, revenue: 0 };
-      row.leads += patch.leads ?? 0;
-      row.sold += patch.sold ?? 0;
-      row.revenue += patch.revenue ?? 0;
-      bySource.set(source, row);
-    };
-
-    for (const lead of periodLeads) bump(lead.source, { leads: 1 });
-    for (const job of periodJobs) {
-      bump(sourceFor(job.clientId, job.createdAt), { sold: 1 });
-    }
-    for (const invoice of periodInvoices) {
-      const job =
-        invoice.workOrderId === undefined
-          ? undefined
-          : jobById.get(invoice.workOrderId);
-      bump(sourceFor(job?.clientId, invoice.date), {
-        revenue: invoice.valueExTax,
-      });
-    }
-
-    // Grouped into channels, so Wes reads demand by channel rather than by
-    // data entry habit. The raw source rows stay available underneath.
-    const byCategory = new Map<string, Row>();
-    for (const [source, row] of bySource.entries()) {
-      const key = categorize(source);
-      const current = byCategory.get(key) ?? { leads: 0, sold: 0, revenue: 0 };
-      current.leads += row.leads;
-      current.sold += row.sold;
-      current.revenue += row.revenue;
-      byCategory.set(key, current);
-    }
-    const categories = CATEGORY_ORDER.filter(name => byCategory.has(name)).map(
-      name => {
-        const row = byCategory.get(name)!;
-        return {
-          category: name,
-          leads: row.leads,
-          sold: row.sold,
-          leadToSale: row.leads > 0 ? round((row.sold / row.leads) * 100, 1) : null,
-          revenue: Math.round(row.revenue),
-          paid: isPaidCategory(name),
-        };
-      },
-    );
-
-    const sources = [...bySource.entries()]
-      .map(([source, row]) => ({
-        source,
-        category: categorize(source),
-        leads: row.leads,
-        sold: row.sold,
-        leadToSale: row.leads > 0 ? round((row.sold / row.leads) * 100, 1) : null,
-        revenue: Math.round(row.revenue),
-        // Cost per sale needs media cost, which only Google Ads can supply.
-        costPerSale: null as number | null,
-      }))
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 10);
-
-    // ---- average job value, relationship sources against the rest
-    let relationshipValue = 0;
-    let relationshipJobs = 0;
-    let acquisitionValue = 0;
-    let acquisitionJobs = 0;
-    for (const invoice of periodInvoices) {
-      const job =
-        invoice.workOrderId === undefined
-          ? undefined
-          : jobById.get(invoice.workOrderId);
-      const source = sourceFor(job?.clientId, invoice.date);
-      if (isRelationship(source)) {
-        relationshipValue += invoice.valueExTax;
-        relationshipJobs += 1;
-      } else {
-        acquisitionValue += invoice.valueExTax;
-        acquisitionJobs += 1;
-      }
-    }
-
-    // ---- twelve month trend of revenue attributed, by month closed
+    // ---- twelve month trend of revenue closed, by month
     const currentMonth = monthKey(today);
     const monthTotals = new Map<string, number>();
     for (const invoice of invoices) {
@@ -339,16 +201,8 @@ export const marketing = authenticatedQuery({
             ? Math.round(totalRevenue / periodInvoices.length)
             : null,
         jobs: periodInvoices.length,
-        acquisition:
-          acquisitionJobs > 0 ? Math.round(acquisitionValue / acquisitionJobs) : null,
-        relationship:
-          relationshipJobs > 0
-            ? Math.round(relationshipValue / relationshipJobs)
-            : null,
       },
       totalRevenue,
-      sources,
-      categories,
       trend,
       // From the leads sheet. Paid Ads combines Google Ads and Local
       // Services Ads, and SEO carries a cost of its own. Return on spend

@@ -56,21 +56,16 @@ export function MarketingPage() {
 
   const funnel = data.funnel;
   const widest = Math.max(1, funnel.leads, funnel.estimates, funnel.sold);
-  const maxCategoryLeads = Math.max(
-    1,
-    ...data.categories.map((row: any) => row.leads),
-  );
-  const maxSourceRevenue = Math.max(
-    1,
-    ...data.sources.map((source: any) => source.revenue),
-  );
   const maxTrend = Math.max(1, ...data.trend.map((point: any) => point.revenue));
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16, padding: 20 }}>
       <Note>
-        Attribution follows the lead source recorded at intake, so these figures
-        reflect first contact rather than every touch.
+        Spend, leads, sales and every cost ratio come from the TreeNewal leads
+        sheet. Job counts and revenue come from ArboStar and the invoice
+        record. Lead source as recorded at intake is not shown, because
+        customers often do not know how they found the company and the field
+        does not agree with call tracking.
       </Note>
 
       {data.spend.missingMonths.length > 0 && (
@@ -218,137 +213,17 @@ export function MarketingPage() {
 
         <Card style={{ gap: 10 }}>
           <SectionTitle>Average job value</SectionTitle>
-          <div style={{ display: "flex", gap: 28 }}>
-            <div>
-              <Figure size={26}>{money(data.averageJobValue.acquisition)}</Figure>
-              <Note>Paid, organic and profile</Note>
-            </div>
-            <div>
-              <Figure size={26}>{money(data.averageJobValue.relationship)}</Figure>
-              <Note>Referral and repeat</Note>
-            </div>
-          </div>
-          {data.averageJobValue.acquisition !== null &&
-            data.averageJobValue.relationship !== null && (
-              <Note>
-                Referral and repeat run{" "}
-                {money(
-                  Math.abs(
-                    data.averageJobValue.relationship -
-                      data.averageJobValue.acquisition,
-                  ),
-                )}{" "}
-                {data.averageJobValue.relationship >= data.averageJobValue.acquisition
-                  ? "higher"
-                  : "lower"}
-                .
-              </Note>
-            )}
+          <Figure size={30}>{money(data.averageJobValue.blended)}</Figure>
+          <Note>
+            Across {count(data.averageJobValue.jobs)} jobs closed in the period.
+            The same job set as the Jobs screen and the map.
+          </Note>
         </Card>
       </div>
 
       <Card style={{ gap: 10 }}>
-        <SectionTitle>Where demand comes from</SectionTitle>
-        <Note>
-          By channel first, then the raw source labels underneath. Cost per sale
-          reads Not tracked where the source carries no media cost, or where its
-          cost is not in the leads sheet.
-        </Note>
-        <div style={{ marginBottom: 18 }}>
-          {data.categories.map((row: any) => (
-            <div
-              key={row.category}
-              style={{
-                display: "flex",
-                alignItems: "baseline",
-                gap: 12,
-                padding: "7px 0",
-                borderTop: "1px solid var(--tn-border)",
-              }}
-            >
-              <div style={{ flex: "0 0 190px", fontWeight: 600 }}>{row.category}</div>
-              <div style={{ flex: 1, minWidth: 60 }}>
-                <Bar
-                  ratio={row.leads / maxCategoryLeads}
-                  color={row.paid ? "var(--tn-leaf-500)" : "var(--tn-fg-subtle)"}
-                  height={6}
-                />
-              </div>
-              <div style={{ flex: "0 0 auto", textAlign: "right", minWidth: 150 }}>
-                {count(row.leads)} leads, {count(row.sold)} sold, {money(row.revenue)}
-              </div>
-            </div>
-          ))}
-          <Note>
-            Channels group the 58 source labels ArboStar records. Green marks
-            bought media. Repeat and referral is demand the company already
-            earned and is not a marketing channel.
-          </Note>
-        </div>
-
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-          <thead>
-            <tr style={{ textAlign: "left", color: "var(--tn-fg-muted)" }}>
-              <th style={{ fontWeight: 600, padding: "4px 0" }}>Source</th>
-              <th style={{ fontWeight: 600, textAlign: "right", paddingLeft: 14 }}>
-                Leads
-              </th>
-              <th style={{ fontWeight: 600, textAlign: "right", paddingLeft: 14 }}>
-                Jobs sold
-              </th>
-              <th className="tn-col-wide" style={{ fontWeight: 600, textAlign: "right", paddingLeft: 14 }}>
-                Lead to sale
-              </th>
-              <th className="tn-col-wide" style={{ fontWeight: 600, textAlign: "right", paddingLeft: 14 }}>
-                Cost per sale
-              </th>
-              <th className="tn-col-wide" style={{ fontWeight: 600, textAlign: "right", paddingLeft: 14 }}>
-                Revenue attributed
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.sources.map((source: any) => (
-              <tr key={source.source} style={{ borderTop: "1px solid var(--tn-border)" }}>
-                <td style={{ padding: "6px 0" }}>
-                  <div>{source.source}</div>
-                  <div style={{ marginTop: 4, maxWidth: 220 }}>
-                    <Bar
-                      ratio={source.revenue / maxSourceRevenue}
-                      color="var(--tn-leaf-500)"
-                      height={6}
-                    />
-                  </div>
-                </td>
-                <td style={{ textAlign: "right", paddingLeft: 14 }}>
-                  {count(source.leads)}
-                </td>
-                <td style={{ textAlign: "right", paddingLeft: 14 }}>
-                  {count(source.sold)}
-                </td>
-                <td className="tn-col-wide" style={{ textAlign: "right", paddingLeft: 14 }}>
-                  {source.leadToSale === null ? "Not yet" : percent(source.leadToSale, 1)}
-                </td>
-                <td className="tn-col-wide" style={{ textAlign: "right", paddingLeft: 14, color: "var(--tn-fg-subtle)" }}>
-                  Not tracked
-                </td>
-                <td className="tn-col-wide" style={{ textAlign: "right", paddingLeft: 14 }}>
-                  {money(source.revenue)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <Note>
-          Leads are counted when they arrive. A sold job is attributed to the most
-          recent lead its customer raised on or before the day it sold, so leads and
-          jobs in the same row can come from different periods.
-        </Note>
-      </Card>
-
-      <Card style={{ gap: 10 }}>
         <SectionTitle>Trailing twelve months</SectionTitle>
-        <Note>Revenue attributed, by month closed.</Note>
+        <Note>All revenue closed, by month.</Note>
         <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 120 }}>
           {data.trend.map((point: any) => (
             <div
@@ -384,8 +259,8 @@ export function MarketingPage() {
 
       <Note>
         Spend, cost per lead and cost per sale come from the TreeNewal leads
-        sheet, which is monthly, so period figures cover whole months. Lead
-        sources, the funnel and revenue come from ArboStar,{" "}
+        sheet, which is monthly, so period figures cover whole months. The
+        funnel counts and revenue come from ArboStar and the invoice record,{" "}
         {count(data.leadsSynced)} leads mirrored.
       </Note>
     </div>
