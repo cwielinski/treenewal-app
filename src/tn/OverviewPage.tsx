@@ -13,6 +13,7 @@ import {
   SectionTitle,
   TargetBand,
 } from "./components";
+import { SourceFreshness } from "./Freshness";
 import { useDashboardState } from "./dashboardState";
 import { count, lineName, money, percent, rangeLabel, shortDate, weeks } from "./format";
 
@@ -385,6 +386,8 @@ export function OverviewPage() {
         come from the TreeNewal leads sheet, not from lead source at intake.
         Tap Average job value to open the job drill-down.
       </div>
+
+      <SourceFreshness combined />
 
       {drillOpen && <JobDrill data={data} onClose={() => setDrillOpen(false)} />}
     </div>

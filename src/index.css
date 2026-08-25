@@ -684,3 +684,11 @@
 @media (max-width: 900px) {
   .tn-col-wide { display: none; }
 }
+
+/* Calculations guide: the three column rows stack on small screens. */
+@media (max-width: 900px) {
+  .tn-guide-row {
+    grid-template-columns: 1fr !important;
+    gap: 6px !important;
+  }
+}

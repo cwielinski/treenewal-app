@@ -98,9 +98,21 @@ function readProfitAndLoss(report: QbReport) {
   const revenue =
     amountFor(report, (label, group) => group === "income" || label === "total income") ??
     amountFor(report, label => label.startsWith("total income"));
+  // TreeNewal's chart of accounts labels the section COGS and QuickBooks
+  // emits a GrossProfit summary row of its own, which is the figure to
+  // trust rather than one recomputed from a section total.
   const cogs =
-    amountFor(report, (label, group) => group === "cos" || label === "total cost of goods sold") ??
-    amountFor(report, label => label.startsWith("total cost of"));
+    amountFor(
+      report,
+      (label, group) =>
+        group === "cogs" ||
+        group === "cos" ||
+        label === "total cost of goods sold",
+    ) ?? amountFor(report, label => label.startsWith("total cost of"));
+  const reportedGrossProfit = amountFor(
+    report,
+    (_label, group) => group === "grossprofit",
+  );
   const expenses = amountFor(
     report,
     (label, group) => group === "expenses" || label === "total expenses",
@@ -108,7 +120,8 @@ function readProfitAndLoss(report: QbReport) {
   const payroll = sumMatching(report, ["payroll", "wages", "salaries", "labor"]);
   const debtService = sumMatching(report, ["interest expense", "loan"]);
   const grossProfit =
-    revenue !== undefined && cogs !== undefined ? revenue - cogs : undefined;
+    reportedGrossProfit ??
+    (revenue !== undefined && cogs !== undefined ? revenue - cogs : undefined);
   return {
     revenue,
     grossProfit,

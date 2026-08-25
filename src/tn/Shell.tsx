@@ -78,6 +78,39 @@ function RefreshButton() {
   );
 }
 
+/**
+ * The calculations guide. A quiet link rather than a sixth nav item, so the
+ * five screen links in the header stay as specified.
+ */
+function GuideLink() {
+  const location = useLocation();
+  const active = location.pathname.startsWith("/guide");
+  return (
+    <NavLink
+      to="/guide"
+      title="How these figures are calculated"
+      aria-label="How these figures are calculated"
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: 24,
+        height: 24,
+        borderRadius: 999,
+        border: "1px solid var(--tn-border)",
+        color: active ? "var(--tn-leaf-600)" : "var(--tn-fg-muted)",
+        textDecoration: "none",
+        fontFamily: "var(--tn-font-sans)",
+        fontSize: 12,
+        fontWeight: 700,
+        flex: "0 0 auto",
+      }}
+    >
+      ?
+    </NavLink>
+  );
+}
+
 function PeriodSelect({ className }: { className?: string }) {
   const { period, setPeriod } = useDashboardState();
   return (
@@ -317,6 +350,7 @@ function ShellInner() {
               color: "var(--tn-fg-subtle)",
             }}
           >
+            <GuideLink />
             <span style={{ whiteSpace: "nowrap" }}>
               Updated {clockTime(lastRefresh)}
             </span>
@@ -353,6 +387,7 @@ function ShellInner() {
             color: "var(--tn-fg-subtle)",
           }}
         >
+          <GuideLink />
           <span style={{ whiteSpace: "nowrap" }}>Updated {clockTime(lastRefresh)}</span>
           <RefreshButton />
         </div>

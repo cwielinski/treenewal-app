@@ -10,6 +10,7 @@ import {
   Pending,
   SectionTitle,
 } from "./components";
+import { SourceFreshness } from "./Freshness";
 import { useDashboardState } from "./dashboardState";
 import { count, money, monthLabel, rangeLabel, shortDate } from "./format";
 
@@ -271,11 +272,14 @@ export function CashPage() {
         </Note>
       </Card>
 
-      <Note>
-        Receivables, collections and payment timing come from ArboStar invoices and
-        their payments. Cash on hand, payroll, operating expenses and debt service
-        come from QuickBooks.
-      </Note>
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <Note>
+          Receivables, collections and payment timing come from ArboStar invoices and
+          their payments. Cash on hand, payroll, operating expenses and debt service
+          come from QuickBooks.
+        </Note>
+        <SourceFreshness combined />
+      </div>
     </div>
   );
 }

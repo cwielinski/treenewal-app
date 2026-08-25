@@ -1,6 +1,9 @@
 {
   "version": 1,
   "auth": {
-    "mode": "authenticated"
+    "mode": "authenticated",
+    "providers": [
+      "email_password"
+    ]
   }
 }

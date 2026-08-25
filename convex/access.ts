@@ -39,6 +39,7 @@ const roleValidator = v.union(
 const SEEDED_OWNERS = [
   "w.rivers@treenewal.com",
   "k.rivers@treenewal.com",
+  "chris@thinkcre8tive.com",
 ];
 
 async function accessRowFor(

@@ -435,3 +435,46 @@ export const categoryTotals = internalQuery({
     return [...out.entries()].sort((a, b) => b[1] - a[1]);
   },
 });
+
+/**
+ * A plain-number health check, safe to call through query_app_database
+ * against production. Every field is a primitive so the value serializes.
+ */
+export const prodHealth = internalQuery({
+  args: {},
+  handler: async ctx => {
+    const invoices = await ctx.db.query("invoices").collect();
+    const leads = await ctx.db.query("leads").collect();
+    const sync = await ctx.db.query("syncState").collect();
+    let latest = "";
+    for (const invoice of invoices) if (invoice.date > latest) latest = invoice.date;
+    return {
+      invoices: invoices.length,
+      leads: leads.length,
+      latestInvoiceDate: latest,
+      syncRows: sync.map(row => `${row.source}:${row.recordCount ?? 0}:${row.status ?? ""}`).join(" | "),
+    };
+  },
+});
+
+/** The QuickBooks mirror, as stored. Read only, for verification. */
+export const finance = internalQuery({
+  args: {},
+  returns: v.any(),
+  handler: async ctx => {
+    const rows = await ctx.db.query("finance").collect();
+    return rows.map(row => ({
+      periodKey: row.periodKey,
+      line: row.line,
+      revenue: row.revenue ?? null,
+      grossProfit: row.grossProfit ?? null,
+      payroll: row.payroll ?? null,
+      operatingExpenses: row.operatingExpenses ?? null,
+      debtService: row.debtService ?? null,
+      revenuePriorYear: row.revenuePriorYear ?? null,
+      receivablesCurrent: row.receivablesCurrent ?? null,
+      receivables60plus: row.receivables60plus ?? null,
+      updatedAt: row.updatedAt,
+    }));
+  },
+});

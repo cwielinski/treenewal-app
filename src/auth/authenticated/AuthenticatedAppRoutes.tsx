@@ -16,6 +16,7 @@ import { OverviewPage } from "@/tn/OverviewPage";
 import { JobsPage } from "@/tn/JobsPage";
 import { AccessPage } from "@/tn/AccessPage";
 import { CashPage } from "@/tn/CashPage";
+import { GuidePage } from "@/tn/GuidePage";
 import { MapPage } from "@/tn/MapPage";
 import { MarketingPage } from "@/tn/MarketingPage";
 import { DashboardShell } from "@/tn/Shell";
@@ -44,6 +45,7 @@ export function AuthenticatedRoutes() {
           <Route path="/cash" element={<CashPage />} />
           <Route path="/marketing" element={<MarketingPage />} />
           <Route path="/access" element={<AccessPage />} />
+          <Route path="/guide" element={<GuidePage />} />
         </Route>
         <Route element={<AppLayout />}>
           <Route path="/settings" element={<SettingsPage />} />
