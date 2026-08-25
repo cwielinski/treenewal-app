@@ -242,7 +242,7 @@ export function OverviewPage() {
           </Note>
           <Note>
             {totalLineValue > 0
-              ? `Plant Health Care is ${((phc.jobValue / totalLineValue) * 100).toFixed(0)}% of invoiced value this period. Gross profit by line follows once QuickBooks is connected.`
+              ? `Plant Health Care is ${((phc.jobValue / totalLineValue) * 100).toFixed(0)}% of invoiced value this period. Gross profit by line follows once the QuickBooks classes are mapped to the two service lines.`
               : "No closed jobs in this period yet."}
           </Note>
         </Card>
@@ -340,9 +340,18 @@ export function OverviewPage() {
           <Card style={{ gap: 6 }}>
             <Eyebrow>Payroll as a share of revenue</Eyebrow>
             {finance?.payroll && finance?.revenue ? (
-              <div style={{ fontSize: 26, fontWeight: 700, lineHeight: 1 }}>
-                {((finance.payroll / finance.revenue) * 100).toFixed(1)}%
-              </div>
+              <>
+                <div style={{ fontSize: 26, fontWeight: 700, lineHeight: 1 }}>
+                  {((finance.payroll / finance.revenue) * 100).toFixed(1)}%
+                </div>
+                <Note>
+                  {money(finance.fieldLabor)} crew wages in cost of goods sold
+                  and {money(finance.overheadPayroll)} payroll in overhead.
+                  {finance.subcontractorLabor
+                    ? ` Subcontractors, ${money(finance.subcontractorLabor)}, are counted as job cost and left out of this ratio.`
+                    : ""}
+                </Note>
+              </>
             ) : (
               <Pending label="Awaiting QuickBooks connection" />
             )}

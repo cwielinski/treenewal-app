@@ -266,9 +266,9 @@ export function CashPage() {
       <Card>
         <SectionTitle>Thirteen week cash forecast</SectionTitle>
         <Note>
-          Scheduled work, expected collection timing and recurring costs. The
-          collection side is ready from invoice history. The cost side needs
-          QuickBooks, so the forecast stays off until that connection is restored.
+          Scheduled work, expected collection timing and recurring costs. Both
+          sides are now available, collections from invoice history and costs
+          from QuickBooks. Being built next.
         </Note>
       </Card>
 

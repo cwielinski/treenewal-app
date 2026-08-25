@@ -224,7 +224,7 @@ export const cash = authenticatedQuery({
       quickbooks: {
         status: quickbooks?.status ?? "unavailable",
         message: quickbooks?.message ?? null,
-        cashOnHand: null as number | null,
+        cashOnHand: financeRow?.cashOnHand ?? null,
         cashOut:
           financeRow?.operatingExpenses !== undefined &&
           financeRow?.payroll !== undefined

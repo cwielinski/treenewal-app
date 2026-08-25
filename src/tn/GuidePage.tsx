@@ -201,9 +201,7 @@ export function GuidePage() {
           {
             figure: "Gross margin",
             source: "QuickBooks",
-            made: qbLive
-              ? "Revenue less cost of goods sold, as classed in QuickBooks."
-              : "Revenue less cost of goods sold, as classed in QuickBooks. Reads as awaiting QuickBooks until that connection is restored.",
+            made: "The gross profit line QuickBooks publishes on the profit and loss, which is revenue less cost of goods sold, divided by revenue. Read from the report rather than recomputed, so it matches what the accountant sees.",
             controls: PERIOD_LINE,
           },
           {
@@ -294,9 +292,15 @@ export function GuidePage() {
             controls: "None",
           },
           {
-            figure: "Payroll, operating expenses, debt service",
+            figure: "Payroll",
             source: "QuickBooks",
-            made: "Taken from QuickBooks as classed there.",
+            made: "Crew wages inside cost of goods sold plus payroll in overhead. Subcontractors are labor but not employees, so they count as job cost and stay out of the payroll ratio. Owner guaranteed payments are not in it either.",
+            controls: "Period",
+          },
+          {
+            figure: "Operating expenses and debt service",
+            source: "QuickBooks",
+            made: "Total expenses below the gross profit line, and interest and loan costs within them, as classed in QuickBooks.",
             controls: "Period",
           },
         ]}

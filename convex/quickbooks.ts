@@ -85,11 +85,15 @@ function sumMatching(report: QbReport | QbRow, needles: string[]): number {
   return total;
 }
 
-async function profitAndLoss(start: string, end: string): Promise<QbReport> {
+async function profitAndLoss(
+  start: string,
+  end: string,
+  method: "Accrual" | "Cash" = "Accrual",
+): Promise<QbReport> {
   const raw = await callTool<unknown>("mcp_quickbooks_run_profit_loss_report", {
     start_date: start,
     end_date: end,
-    accounting_method: "Accrual",
+    accounting_method: method,
   });
   return unwrapJson(raw) as QbReport;
 }
@@ -117,7 +121,21 @@ function readProfitAndLoss(report: QbReport) {
     report,
     (label, group) => group === "expenses" || label === "total expenses",
   );
-  const payroll = sumMatching(report, ["payroll", "wages", "salaries", "labor"]);
+  // Labor is split rather than lumped. Wages inside cost of goods sold are
+  // crews on jobs. Payroll Expenses in overhead is everyone else.
+  // Subcontractors are labor but not employees, so they stand on their own
+  // and are never inside the payroll ratio.
+  const fieldLabor = amountFor(report, label => label === "cost of labor - cos");
+  const overheadPayroll = amountFor(report, label => label === "payroll expenses");
+  const subcontractorLabor = amountFor(
+    report,
+    label => label === "subcontractors labor expense",
+  );
+  const payroll =
+    fieldLabor !== undefined || overheadPayroll !== undefined
+      ? (fieldLabor ?? 0) + (overheadPayroll ?? 0)
+      : sumMatching(report, ["payroll", "wages", "salaries", "labor"]);
+  const netIncome = amountFor(report, (_label, group) => group === "netincome");
   const debtService = sumMatching(report, ["interest expense", "loan"]);
   const grossProfit =
     reportedGrossProfit ??
@@ -127,6 +145,10 @@ function readProfitAndLoss(report: QbReport) {
     grossProfit,
     operatingExpenses: expenses,
     payroll: payroll || undefined,
+    fieldLabor,
+    overheadPayroll,
+    subcontractorLabor,
+    netIncome,
     debtService: debtService || undefined,
   };
 }
@@ -136,6 +158,26 @@ export const syncFinance = internalAction({
   returns: v.null(),
   handler: async ctx => {
     try {
+      // Cash on hand is the bank balance from the balance sheet, not the
+      // book balance, so it is the number Wes could withdraw today.
+      let cashOnHand: number | undefined;
+      let undepositedFunds: number | undefined;
+      try {
+        const balanceSheet = unwrapJson(
+          await callTool<unknown>("mcp_quickbooks_run_balance_sheet_report", {}),
+        ) as QbReport;
+        cashOnHand = amountFor(
+          balanceSheet,
+          (label, group) => group === "bankaccounts" || label === "total bank accounts",
+        );
+        undepositedFunds = amountFor(
+          balanceSheet,
+          label => label === "undeposited funds",
+        );
+      } catch {
+        cashOnHand = undefined;
+      }
+
       const aging = unwrapJson(
         await callTool<unknown>("mcp_quickbooks_run_aged_receivables_report", {}),
       ) as QbReport;
@@ -164,6 +206,14 @@ export const syncFinance = internalAction({
         const prior = priorYearRange(range);
         const current = readProfitAndLoss(await profitAndLoss(range.start, range.end));
         const priorYear = readProfitAndLoss(await profitAndLoss(prior.start, prior.end));
+        // Cash collected is the same profit and loss on a cash basis, so it
+        // counts money actually received rather than money invoiced.
+        const cash = readProfitAndLoss(
+          await profitAndLoss(range.start, range.end, "Cash"),
+        );
+        const cashPrior = readProfitAndLoss(
+          await profitAndLoss(prior.start, prior.end, "Cash"),
+        );
 
         await ctx.runMutation(internal.quickbooks.storeFinance, {
           periodKey,
@@ -171,8 +221,16 @@ export const syncFinance = internalAction({
           revenue: current.revenue,
           grossProfit: current.grossProfit,
           payroll: current.payroll,
+          fieldLabor: current.fieldLabor,
+          overheadPayroll: current.overheadPayroll,
+          subcontractorLabor: current.subcontractorLabor,
+          netIncome: current.netIncome,
           operatingExpenses: current.operatingExpenses,
           debtService: current.debtService,
+          cashCollected: cash.revenue,
+          cashOnHand,
+          undepositedFunds,
+          cashCollectedPriorYear: cashPrior.revenue,
           revenuePriorYear: priorYear.revenue,
           grossProfitPriorYear: priorYear.grossProfit,
           ...receivables,
@@ -201,7 +259,14 @@ export const storeFinance = internalMutation({
     revenue: v.optional(v.number()),
     grossProfit: v.optional(v.number()),
     cashCollected: v.optional(v.number()),
+    cashCollectedPriorYear: v.optional(v.number()),
+    cashOnHand: v.optional(v.number()),
+    undepositedFunds: v.optional(v.number()),
     payroll: v.optional(v.number()),
+    fieldLabor: v.optional(v.number()),
+    overheadPayroll: v.optional(v.number()),
+    subcontractorLabor: v.optional(v.number()),
+    netIncome: v.optional(v.number()),
     operatingExpenses: v.optional(v.number()),
     debtService: v.optional(v.number()),
     revenuePriorYear: v.optional(v.number()),
