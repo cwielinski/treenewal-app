@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { requireScreen } from "./access";
 import { authenticatedQuery } from "./functions";
+import { matchesSegment, type SegmentFilter } from "./backlog";
 import { type PeriodKey, periodRange } from "./periods";
 
 /**
@@ -59,9 +60,21 @@ function average(values: number[]): number | null {
 }
 
 export const map = authenticatedQuery({
-  args: { period: periodArg, line: lineArg, minValue: v.optional(v.number()) },
+  args: {
+    period: periodArg,
+    line: lineArg,
+    minValue: v.optional(v.number()),
+    segment: v.optional(
+      v.union(
+        v.literal("all"),
+        v.literal("exclude_government"),
+        v.literal("government"),
+      ),
+    ),
+  },
   returns: v.any(),
-  handler: async (ctx, { period, line, minValue }) => {
+  handler: async (ctx, { period, line, minValue, segment: segmentArgValue }) => {
+    const segment: SegmentFilter = segmentArgValue ?? "all";
     await requireScreen(ctx, "map");
 
     const now = Date.now();
@@ -78,6 +91,7 @@ export const map = authenticatedQuery({
         !inv.excluded &&
         !inv.consultation &&
         matchesLine(inv.serviceLine, line) &&
+        matchesSegment(inv.segment, segment) &&
         inv.valueExTax >= floor,
     );
 
@@ -95,6 +109,7 @@ export const map = authenticatedQuery({
           city: inv.city ?? "",
           value: Math.round(inv.valueExTax),
           serviceLine: effectiveLine(inv.serviceLine),
+          segment: inv.segment ?? "unknown",
           inside:
             milesBetween(AD_CENTER.lat, AD_CENTER.lon, lat, lon) <= AD_RADIUS_MILES,
         };
@@ -130,6 +145,13 @@ export const map = authenticatedQuery({
       line,
       center: AD_CENTER,
       radiusMiles: AD_RADIUS_MILES,
+      segment,
+      segmentCounts: {
+        residential: pins.filter(pin => pin.segment === "residential").length,
+        commercial: pins.filter(pin => pin.segment === "commercial").length,
+        government: pins.filter(pin => pin.segment === "government").length,
+        unknown: pins.filter(pin => pin.segment === "unknown").length,
+      },
       jobsMapped: pins.length,
       jobsClosed: closed.length,
       unmapped: closed.length - pins.length,

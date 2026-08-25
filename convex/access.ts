@@ -36,7 +36,10 @@ const roleValidator = v.union(
 );
 
 /** Owners of record, seeded so the first sign in is not locked out. */
-const SEEDED_OWNERS = ["w.rivers@treenewal.com"];
+const SEEDED_OWNERS = [
+  "w.rivers@treenewal.com",
+  "k.rivers@treenewal.com",
+];
 
 async function accessRowFor(
   ctx: QueryCtx,
@@ -178,6 +181,41 @@ export const setAccess = authenticatedMutation({
       await ctx.db.insert("access", { email: normalized, name, role, screens });
     }
     return null;
+  },
+});
+
+/**
+ * True when the signed in person is an owner. Owners are the only people
+ * who can change access or reset someone else's password.
+ */
+export async function isOwner(
+  ctx: QueryCtx & { userId: Id<"users"> },
+): Promise<boolean> {
+  const row = await accessRowFor(ctx, ctx.userId);
+  if (row) return row.role === "owner";
+  const user = await ctx.db.get(ctx.userId);
+  return SEEDED_OWNERS.includes(user?.email?.toLowerCase() ?? "");
+}
+
+/** The email an owner is allowed to reset, checked before the action runs. */
+export const emailForReset = authenticatedQuery({
+  args: { email: v.string() },
+  returns: v.string(),
+  handler: async (ctx, { email }) => {
+    if (!(await isOwner(ctx))) {
+      throw new Error("Only an owner can reset another person's password.");
+    }
+    return email.trim().toLowerCase();
+  },
+});
+
+/** The signed in person's own email, for a self service password change. */
+export const myEmail = authenticatedQuery({
+  args: {},
+  returns: v.string(),
+  handler: async ctx => {
+    const user = await ctx.db.get(ctx.userId);
+    return user?.email?.toLowerCase() ?? "";
   },
 });
 

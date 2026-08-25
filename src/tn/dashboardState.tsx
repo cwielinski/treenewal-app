@@ -29,18 +29,37 @@ export const LINES = [
 
 export type LineKey = (typeof LINES)[number]["key"];
 
+/**
+ * Government work runs on its own clock: awards sit open for a year or
+ * more and retainage is held long after the job is done, so it can be put
+ * in or taken out of the job, cash and map figures.
+ */
+export const SEGMENTS = [
+  { key: "all", label: "With government" },
+  { key: "exclude_government", label: "Without government" },
+  { key: "government", label: "Government only" },
+] as const;
+
+export type SegmentKey = (typeof SEGMENTS)[number]["key"];
+
 type DashboardState = {
   period: PeriodKey;
   line: LineKey;
+  segment: SegmentKey;
   setPeriod: (period: PeriodKey) => void;
   setLine: (line: LineKey) => void;
+  setSegment: (segment: SegmentKey) => void;
 };
 
 const STORAGE_KEY = "tn-dashboard-controls";
 
 const DashboardContext = createContext<DashboardState | null>(null);
 
-function readStored(): { period?: PeriodKey; line?: LineKey } {
+function readStored(): {
+  period?: PeriodKey;
+  line?: LineKey;
+  segment?: SegmentKey;
+} {
   try {
     return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
   } catch {
@@ -52,18 +71,22 @@ export function DashboardStateProvider({ children }: { children: ReactNode }) {
   const stored = useMemo(readStored, []);
   const [period, setPeriod] = useState<PeriodKey>(stored.period ?? "mtd");
   const [line, setLine] = useState<LineKey>(stored.line ?? "all");
+  const [segment, setSegment] = useState<SegmentKey>(stored.segment ?? "all");
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ period, line }));
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ period, line, segment }),
+      );
     } catch {
       // A blocked storage write must never break the dashboard.
     }
-  }, [period, line]);
+  }, [period, line, segment]);
 
   const value = useMemo(
-    () => ({ period, line, setPeriod, setLine }),
-    [period, line],
+    () => ({ period, line, segment, setPeriod, setLine, setSegment }),
+    [period, line, segment],
   );
 
   return (

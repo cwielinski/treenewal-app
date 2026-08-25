@@ -7,6 +7,8 @@ import { clockTime } from "./format";
 import {
   DashboardStateProvider,
   LINES,
+  SEGMENTS,
+  type SegmentKey,
   type LineKey,
   PERIODS,
   type PeriodKey,
@@ -158,6 +160,25 @@ function LineSelect() {
   );
 }
 
+function SegmentSelect({ className, mobile }: { className?: string; mobile?: boolean }) {
+  const { segment, setSegment } = useDashboardState();
+  return (
+    <select
+      className={`tn-select ${className ?? ""}`}
+      aria-label="Government work"
+      style={mobile ? { flex: 1, minWidth: 0, height: 44 } : undefined}
+      value={segment}
+      onChange={event => setSegment(event.target.value as SegmentKey)}
+    >
+      {SEGMENTS.map(option => (
+        <option key={option.key} value={option.key}>
+          {option.label}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 function useLastRefresh(): number | null {
   const sources = useQuery(api.metrics.sourceStatus, {});
   if (!sources) return null;
@@ -286,6 +307,7 @@ function ShellInner() {
         <div style={{ display: "flex", alignItems: "center", gap: 14, flex: "0 0 auto" }}>
           <LineSegmented />
           <PeriodSelect />
+          <SegmentSelect />
           <div
             style={{
               display: "flex",
@@ -353,6 +375,7 @@ function ShellInner() {
       >
         <PeriodSelect className="tn-select-mobile" />
         <LineSelect />
+        <SegmentSelect mobile />
       </div>
       <nav
         className="tn-tabbar"

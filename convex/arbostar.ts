@@ -1,11 +1,12 @@
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
-import { internalAction, internalMutation } from "./_generated/server";
+import { internalAction, internalMutation, internalQuery } from "./_generated/server";
 import { arbostarGet } from "./gateway";
 import {
   isFinishedStatus,
   lineFromClassNames,
   lineFromStatusName,
+  segmentFromClientType,
   serviceTypeName,
 } from "./serviceLine";
 
@@ -85,6 +86,7 @@ export const syncJobsPage = internalAction({
           lon: typeof address.lon === "number" ? address.lon : undefined,
           clientName: client.name ? String(client.name) : undefined,
           clientId: client.id === undefined ? undefined : Number(client.id),
+          segment: segmentFromClientType(client.type),
           value: value || withTax - num(totals.total_tax),
           invoiced: withTax,
           paid: num(totals.payments_total),
@@ -142,6 +144,7 @@ export const upsertJobs = internalMutation({
         lon: v.optional(v.number()),
         clientName: v.optional(v.string()),
         clientId: v.optional(v.number()),
+        segment: v.optional(v.union(v.literal("residential"), v.literal("commercial"), v.literal("government"))),
         value: v.number(),
         invoiced: v.number(),
         paid: v.number(),
@@ -250,6 +253,7 @@ export const syncEstimatesPage = internalAction({
             : undefined,
           city: address.city ? String(address.city) : (client.city ? String(client.city) : undefined),
           clientName: client.name ? String(client.name) : undefined,
+          segment: segmentFromClientType(client.type),
         };
       });
 
@@ -313,6 +317,7 @@ export const upsertEstimates = internalMutation({
         topItem: v.optional(v.string()),
         city: v.optional(v.string()),
         clientName: v.optional(v.string()),
+        segment: v.optional(v.union(v.literal("residential"), v.literal("commercial"), v.literal("government"))),
       }),
     ),
   },
@@ -373,16 +378,61 @@ export const recordSyncError = internalMutation({
 });
 
 /** Entry point used by the hourly cron and by the header refresh button. */
+/**
+ * How thin a mirror has to be before the hourly refresh repairs it instead
+ * of only topping it up. A new deployment starts empty, and the screens need
+ * twelve months of history, so the first refresh on a fresh environment has
+ * to walk all the way back on its own. Without this, production would sit on
+ * whatever the recent window covers and quietly understate every trailing
+ * figure.
+ */
+const FULL_BACKFILL_BELOW = { invoices: 2000, leads: 5000 };
+
+/**
+ * Row counts of the two mirrors that need a long history, plus how much of
+ * the invoice mirror predates a field that was added later. A field added
+ * to the mapper only lands on rows the sync touches again, so a mirror that
+ * is large but mostly missing the field still needs one full pass.
+ */
+export const mirrorSize = internalQuery({
+  args: {},
+  returns: v.object({
+    invoices: v.number(),
+    leads: v.number(),
+    invoicesWithSegment: v.number(),
+  }),
+  handler: async ctx => {
+    const invoices = await ctx.db.query("invoices").collect();
+    const leads = await ctx.db.query("leads").collect();
+    return {
+      invoices: invoices.length,
+      leads: leads.length,
+      invoicesWithSegment: invoices.filter(inv => inv.segment !== undefined).length,
+    };
+  },
+});
+
 export const syncAll = internalAction({
   args: {},
   returns: v.null(),
   handler: async ctx => {
+    const mirror = await ctx.runQuery(internal.arbostar.mirrorSize, {});
+    // Most invoices carry a customer segment once a full pass has run. Under
+    // that, the mirror is stale in shape rather than in size and needs one.
+    const segmentShare =
+      mirror.invoices > 0 ? mirror.invoicesWithSegment / mirror.invoices : 0;
+    const invoiceMode =
+      mirror.invoices < FULL_BACKFILL_BELOW.invoices || segmentShare < 0.8
+        ? "full"
+        : "recent";
+    const leadMode = mirror.leads < FULL_BACKFILL_BELOW.leads ? "full" : "recent";
+
     await ctx.scheduler.runAfter(0, internal.arbostar.syncJobsPage, { offset: 0 });
     await ctx.scheduler.runAfter(0, internal.arbostar.syncEstimatesPage, {});
     await ctx.scheduler.runAfter(0, internal.invoices.syncInvoicesPage, {
-      mode: "recent",
+      mode: invoiceMode,
     });
-    await ctx.scheduler.runAfter(0, internal.leads.syncLeadsPage, {});
+    await ctx.scheduler.runAfter(0, internal.leads.syncLeadsPage, { mode: leadMode });
     await ctx.scheduler.runAfter(0, internal.leadSheet.syncLeadSheet, {});
     await ctx.scheduler.runAfter(0, internal.quickbooks.syncFinance, {});
     return null;

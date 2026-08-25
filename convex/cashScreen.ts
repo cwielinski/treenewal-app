@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import { requireScreen } from "./access";
 import { authenticatedQuery } from "./functions";
+import { matchesSegment, type SegmentFilter } from "./backlog";
 import { type PeriodKey, periodRange, todayInCentral } from "./periods";
 
 /**
@@ -63,9 +64,22 @@ function settledOn(invoice: Doc<"invoices">): string | undefined {
 }
 
 export const cash = authenticatedQuery({
-  args: { period: periodArg, line: lineArg },
+  args: {
+    period: periodArg,
+    line: lineArg,
+    segment: v.optional(
+      v.union(
+        v.literal("all"),
+        v.literal("exclude_government"),
+        v.literal("government"),
+      ),
+    ),
+  },
   returns: v.any(),
-  handler: async (ctx, { period, line }) => {
+  handler: async (ctx, { period, line, segment: segmentArgValue }) => {
+    // Government retainage is held for years, so it can be filtered out of
+    // receivables without hiding it from the rest of the business.
+    const segment: SegmentFilter = segmentArgValue ?? "all";
     await requireScreen(ctx, "cash");
 
     const now = Date.now();
@@ -73,7 +87,10 @@ export const cash = authenticatedQuery({
     const range = periodRange(period as PeriodKey, now);
 
     const invoices = (await ctx.db.query("invoices").collect()).filter(
-      invoice => !invoice.excluded && matchesLine(invoice.serviceLine, line),
+      invoice =>
+        !invoice.excluded &&
+        matchesLine(invoice.serviceLine, line) &&
+        matchesSegment(invoice.segment, segment),
     );
 
     // ---- owed to us, aged from the invoice date

@@ -81,8 +81,8 @@ function DaysToPaymentChart({ series }: { series: Point[] }) {
 }
 
 export function CashPage() {
-  const { period, line } = useDashboardState();
-  const data = useQuery(api.cashScreen.cash, { period, line });
+  const { period, line, segment } = useDashboardState();
+  const data = useQuery(api.cashScreen.cash, { period, line, segment });
 
   if (data === undefined) {
     return (

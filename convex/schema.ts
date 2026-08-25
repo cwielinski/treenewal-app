@@ -4,6 +4,16 @@ import { v } from "convex/values";
 
 const serviceLine = v.union(v.literal("production"), v.literal("phc"));
 
+/**
+ * Who is billed, from the ArboStar client record. Government work distorts
+ * open estimates and receivables, so every screen can filter it in or out.
+ */
+const segment = v.union(
+  v.literal("residential"),
+  v.literal("commercial"),
+  v.literal("government"),
+);
+
 const schema = defineSchema({
   ...authTables,
 
@@ -27,6 +37,7 @@ const schema = defineSchema({
     lon: v.optional(v.number()),
     clientName: v.optional(v.string()),
     clientId: v.optional(v.number()),
+    segment: v.optional(segment),
     value: v.number(), // ex tax work order value
     invoiced: v.number(),
     paid: v.number(),
@@ -64,6 +75,7 @@ const schema = defineSchema({
     lat: v.optional(v.number()),
     lon: v.optional(v.number()),
     clientName: v.optional(v.string()),
+    segment: v.optional(segment),
     valueExTax: v.number(),
     total: v.number(),
     paidTotal: v.number(),
@@ -123,6 +135,7 @@ const schema = defineSchema({
     topItem: v.optional(v.string()),
     city: v.optional(v.string()),
     clientName: v.optional(v.string()),
+    segment: v.optional(segment),
   })
     .index("by_arboId", ["arboId"])
     .index("by_createdAt", ["createdAt"]),

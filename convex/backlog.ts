@@ -27,6 +27,24 @@ export const RUN_RATE_WEEKS = 26;
 
 export type Line = "all" | "production" | "phc";
 
+/**
+ * Government work sits on its own clock: awards can be approved two years
+ * after they are issued and retainage is held for years, so it distorts
+ * backlog, open estimates and receivables. Every screen can put it in or
+ * take it out. The flag comes from the ArboStar client type, so it means
+ * "billed to a government body", not "QuickBooks Government class".
+ */
+export type SegmentFilter = "all" | "exclude_government" | "government";
+
+export function matchesSegment(
+  recordSegment: string | undefined,
+  filter: SegmentFilter,
+): boolean {
+  if (filter === "all") return true;
+  const isGovernment = recordSegment === "government";
+  return filter === "government" ? isGovernment : !isGovernment;
+}
+
 export function effectiveLine(recordLine: string | undefined): "production" | "phc" {
   return recordLine === "phc" ? "phc" : "production";
 }
@@ -72,6 +90,7 @@ export function backlogAt(
   input: BacklogInputs,
   asOf: string,
   line: Line,
+  segment: SegmentFilter = "all",
 ): { weeks: number | null; openValue: number; weeklyRunRate: number } {
   const oldest = shiftDays(asOf, -BACKLOG_MAX_AGE_DAYS);
   let openValue = 0;
@@ -80,6 +99,7 @@ export function backlogAt(
     if (isDeadStatus(job.statusName)) continue;
     if (isScheduledAhead(job, asOf)) continue;
     if (!matchesLine(job.serviceLine, line)) continue;
+    if (!matchesSegment(job.segment, segment)) continue;
     const closed = input.closedOn.get(job.arboId);
     if (closed !== undefined && closed <= asOf) continue;
     openValue += job.value;
@@ -91,6 +111,7 @@ export function backlogAt(
     if (invoice.excluded || invoice.consultation) continue;
     if (invoice.date <= rateStart || invoice.date > asOf) continue;
     if (!matchesLine(invoice.serviceLine, line)) continue;
+    if (!matchesSegment(invoice.segment, segment)) continue;
     invoiced += invoice.valueExTax;
   }
   const weeklyRunRate = invoiced / RUN_RATE_WEEKS;

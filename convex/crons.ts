@@ -2,15 +2,23 @@ import { cronJobs } from "convex/server";
 import { internal } from "./_generated/api";
 
 /**
- * Refresh hourly during business hours, Central time. The header shows the
- * last refresh time, so the schedule is visible to the people using it.
- * 12:00 to 23:00 UTC covers 7am to 6pm Central.
+ * Refresh twice a day, before the day starts and after it ends, Central
+ * time. The header shows the last refresh time and carries a manual
+ * refresh button for anyone who wants the numbers sooner.
+ * 10:00 and 23:00 UTC cover 5am and 6pm Central.
  */
 const crons = cronJobs();
 
 crons.cron(
-  "refresh dashboard data hourly during business hours",
-  "0 12-23 * * 1-6",
+  "refresh dashboard data at 5am Central",
+  "0 10 * * *",
+  internal.arbostar.syncAll,
+  {},
+);
+
+crons.cron(
+  "refresh dashboard data at 6pm Central",
+  "0 23 * * *",
   internal.arbostar.syncAll,
   {},
 );

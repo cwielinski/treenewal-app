@@ -124,9 +124,16 @@ function BacklogChart({
   );
 }
 
+const SEGMENT_LABELS: Record<string, string> = {
+  residential: "Residential",
+  commercial: "Commercial",
+  government: "Government",
+  unknown: "Not recorded",
+};
+
 export function JobsPage() {
-  const { period, line } = useDashboardState();
-  const data = useQuery(api.jobsScreen.jobs, { period, line });
+  const { period, line, segment } = useDashboardState();
+  const data = useQuery(api.jobsScreen.jobs, { period, line, segment });
 
   if (data === undefined) {
     return <div style={{ padding: 24, color: "var(--tn-fg-muted)" }}>Loading.</div>;
@@ -284,6 +291,26 @@ export function JobsPage() {
             Service areas only, one crew pool. {count(data.jobSet.jobsClosed)} jobs
             closed this period.
           </Note>
+          <Divider />
+          <Eyebrow>Who the work is for</Eyebrow>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {data.segmentMix.map((row: any) => (
+              <div
+                key={row.segment}
+                style={{ display: "flex", justifyContent: "space-between", fontSize: 14 }}
+              >
+                <span style={{ fontWeight: 600 }}>{SEGMENT_LABELS[row.segment]}</span>
+                <span style={{ color: "var(--tn-fg-muted)" }}>
+                  {count(row.jobs)} · {money(row.value)}
+                </span>
+              </div>
+            ))}
+            {data.segmentMix.length === 0 && <Note>No closed jobs in this period.</Note>}
+          </div>
+          <Note>
+            From the customer record in ArboStar. Government work billed
+            through a general contractor reads as commercial.
+          </Note>
         </Card>
 
         <Card style={{ gap: 10 }}>
@@ -347,6 +374,11 @@ export function JobsPage() {
               </div>
             ))}
           </div>
+          <Note>
+            Aged from the day the estimate was issued. Estimates older than{" "}
+            {count(data.openEstimates.maxAgeDays)} days drop off, except
+            government awards, which routinely sit open far longer.
+          </Note>
           <Divider />
           <Eyebrow>Proposal value won</Eyebrow>
           <Note>Dollars won over dollars proposed, {rangeLabel(data.range)}.</Note>

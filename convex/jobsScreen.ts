@@ -10,11 +10,24 @@ import {
   effectiveLine,
   type Line,
   matchesLine,
+  matchesSegment,
+  type SegmentFilter,
   shiftDays,
 } from "./backlog";
 import { deliveredTypes, isDeadStatus, scheduledMonthFromStatus } from "./serviceLine";
 
 const lineArg = v.union(v.literal("all"), v.literal("production"), v.literal("phc"));
+const segmentArg = v.union(
+  v.literal("all"),
+  v.literal("exclude_government"),
+  v.literal("government"),
+);
+/**
+ * Open estimates age off after this, because a proposal nobody has answered
+ * in half a year is not pipeline. Government awards have no cutoff: they
+ * are routinely approved a year or two after they are issued.
+ */
+const OPEN_ESTIMATE_MAX_AGE_DAYS = 180;
 const periodArg = v.union(
   v.literal("mtd"),
   v.literal("last_month"),
@@ -47,9 +60,14 @@ import { type PeriodKey, periodRange, todayInCentral } from "./periods";
  */
 
 export const jobs = authenticatedQuery({
-  args: { period: periodArg, line: lineArg },
+  args: {
+    period: periodArg,
+    line: lineArg,
+    segment: v.optional(segmentArg),
+  },
   returns: v.any(),
-  handler: async (ctx, { period, line }) => {
+  handler: async (ctx, { period, line, segment: segmentArgValue }) => {
+    const segment: SegmentFilter = segmentArgValue ?? "all";
     await requireScreen(ctx, "jobs");
 
     const now = Date.now();
@@ -58,14 +76,14 @@ export const jobs = authenticatedQuery({
 
     // ---- backlog now, and the twenty six week history behind it
     const inputs = await backlogInputs(ctx);
-    const current = backlogAt(inputs, today, line);
-    const production = backlogAt(inputs, today, "production");
-    const phc = backlogAt(inputs, today, "phc");
+    const current = backlogAt(inputs, today, line, segment);
+    const production = backlogAt(inputs, today, "production", segment);
+    const phc = backlogAt(inputs, today, "phc", segment);
 
     const series: { date: string; weeks: number | null }[] = [];
     for (let week = RUN_RATE_WEEKS; week >= 0; week--) {
       const date = shiftDays(today, -week * 7);
-      series.push({ date, weeks: backlogAt(inputs, date, line).weeks });
+      series.push({ date, weeks: backlogAt(inputs, date, line, segment).weeks });
     }
 
     // Weeks of coverage translated into a date the sold work runs out.
@@ -80,7 +98,12 @@ export const jobs = authenticatedQuery({
         .query("invoices")
         .withIndex("by_date", q => q.gte("date", range.start).lte("date", range.end))
         .collect()
-    ).filter(inv => !inv.excluded && matchesLine(inv.serviceLine, line));
+    ).filter(
+      inv =>
+        !inv.excluded &&
+        matchesLine(inv.serviceLine, line) &&
+        matchesSegment(inv.segment, segment),
+    );
     const closed = closedAll.filter(inv => !inv.consultation);
 
     // ---- where the work is coming from. Demand only, never a financial split.
@@ -146,6 +169,7 @@ export const jobs = authenticatedQuery({
       if (job.createdAt < staleBefore) continue;
       if (isDeadStatus(job.statusName)) continue;
       if (!matchesLine(job.serviceLine, line)) continue;
+      if (!matchesSegment(job.segment, segment)) continue;
       if (inputs.closedOn.has(job.arboId)) continue;
       const month = scheduledMonthFromStatus(job.statusName);
       if (month === undefined || month < today.slice(0, 7)) {
@@ -172,14 +196,20 @@ export const jobs = authenticatedQuery({
     };
 
     // ---- open estimates, aged from the day they were issued
+    const estimateAgeFloor = shiftDays(today, -OPEN_ESTIMATE_MAX_AGE_DAYS);
     const openEstimates = (
       await ctx.db
         .query("estimates")
-        .withIndex("by_createdAt", q =>
-          q.gte("createdAt", shiftDays(today, -365)).lte("createdAt", today),
-        )
+        .withIndex("by_createdAt", q => q.lte("createdAt", today))
         .collect()
-    ).filter(estimate => estimate.open && matchesLine(estimate.serviceLine, line));
+    ).filter(
+      estimate =>
+        estimate.open &&
+        matchesLine(estimate.serviceLine, line) &&
+        matchesSegment(estimate.segment, segment) &&
+        (estimate.segment === "government" ||
+          estimate.createdAt >= estimateAgeFloor),
+    );
 
     const ageDays = (date: string) =>
       Math.max(
@@ -217,12 +247,14 @@ export const jobs = authenticatedQuery({
 
     // ---- proposal value won: dollars won over dollars proposed.
     // Distinct from close rate, which is jobs sold over estimates issued.
-    const periodEstimates = await ctx.db
-      .query("estimates")
-      .withIndex("by_createdAt", q =>
-        q.gte("createdAt", range.start).lte("createdAt", range.end),
-      )
-      .collect();
+    const periodEstimates = (
+      await ctx.db
+        .query("estimates")
+        .withIndex("by_createdAt", q =>
+          q.gte("createdAt", range.start).lte("createdAt", range.end),
+        )
+        .collect()
+    ).filter(estimate => matchesSegment(estimate.segment, segment));
     const proposalValueWonFor = (which: Line) => {
       const subset = periodEstimates.filter(estimate =>
         matchesLine(estimate.serviceLine, which),
@@ -233,6 +265,23 @@ export const jobs = authenticatedQuery({
       );
       return proposed > 0 ? round((won / proposed) * 100, 1) : null;
     };
+
+    // ---- who the work is for. Counts and value only, never a margin split.
+    const segmentTotals = new Map<string, { jobs: number; value: number }>();
+    for (const invoice of closed) {
+      const key = invoice.segment ?? "unknown";
+      const row = segmentTotals.get(key) ?? { jobs: 0, value: 0 };
+      row.jobs += 1;
+      row.value += invoice.valueExTax;
+      segmentTotals.set(key, row);
+    }
+    const segmentMix = ["residential", "commercial", "government", "unknown"]
+      .map(key => ({
+        segment: key,
+        jobs: segmentTotals.get(key)?.jobs ?? 0,
+        value: Math.round(segmentTotals.get(key)?.value ?? 0),
+      }))
+      .filter(row => row.jobs > 0);
 
     const syncRows = await ctx.db.query("syncState").collect();
     const quickbooks = syncRows.find(row => row.source === "quickbooks");
@@ -257,6 +306,8 @@ export const jobs = authenticatedQuery({
         closedValue: Math.round(sum(closed.map(inv => inv.valueExTax))),
         consultations: closedAll.filter(inv => inv.consultation).length,
       },
+      segment,
+      segmentMix,
       cities,
       scheduleAhead,
       jobMix,
@@ -265,6 +316,7 @@ export const jobs = authenticatedQuery({
           ? "quickbooks"
           : "pending",
       openEstimates: {
+        maxAgeDays: OPEN_ESTIMATE_MAX_AGE_DAYS,
         count: openEstimates.length,
         value: Math.round(sum(openEstimates.map(estimate => estimate.valueExTax))),
         buckets: Object.entries(buckets).map(([label, row]) => ({

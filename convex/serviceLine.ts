@@ -139,3 +139,25 @@ export function deliveredTypes(invoice: {
   const scale = invoice.valueExTax / lineSum;
   return lines.map(line => ({ ...line, amount: line.amount * scale }));
 }
+
+/**
+ * Customer segment, from the ArboStar client record.
+ *
+ * ArboStar stores it as client.type: 1 individual, 2 business, 3 government.
+ * Checked against the live data on 2026-08-24: every government looking name
+ * in a 3,000 work order sample carried type 3 and nothing else did, so the
+ * field is trustworthy for filtering government work in and out.
+ *
+ * It describes who is billed, not what QuickBooks class the work lands in.
+ * Government work billed through a general contractor sits under that
+ * contractor and reads as commercial.
+ */
+export type Segment = "residential" | "commercial" | "government";
+
+export function segmentFromClientType(value: unknown): Segment | undefined {
+  const raw = value === undefined || value === null ? "" : String(value).trim();
+  if (raw === "1") return "residential";
+  if (raw === "2") return "commercial";
+  if (raw === "3") return "government";
+  return undefined;
+}

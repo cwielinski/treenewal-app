@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { useState } from "react";
 import { api } from "../../convex/_generated/api";
 import { Card, Note, SectionTitle } from "./components";
@@ -36,6 +36,147 @@ function Tick({ on }: { on: boolean }) {
   );
 }
 
+/** Self service password change. Available to everyone who can sign in. */
+function PasswordCard() {
+  const changePassword = useAction(api.passwords.changeMyPassword);
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (next !== confirm) {
+      setMessage("The two new passwords do not match.");
+      return;
+    }
+    setBusy(true);
+    setMessage(null);
+    try {
+      await changePassword({ currentPassword: current, newPassword: next });
+      setCurrent("");
+      setNext("");
+      setConfirm("");
+      setMessage("Password changed.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not change the password.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card style={{ gap: 12 }}>
+      <SectionTitle>Your password</SectionTitle>
+      <Note>At least ten characters. You stay signed in on this device.</Note>
+      <form
+        onSubmit={submit}
+        style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "flex-end" }}
+      >
+        <label style={{ display: "flex", flexDirection: "column", gap: 6, flex: "1 1 180px" }}>
+          <span className="tn-label">Current password</span>
+          <input
+            className="tn-input"
+            type="password"
+            value={current}
+            onChange={event => setCurrent(event.target.value)}
+            required
+          />
+        </label>
+        <label style={{ display: "flex", flexDirection: "column", gap: 6, flex: "1 1 180px" }}>
+          <span className="tn-label">New password</span>
+          <input
+            className="tn-input"
+            type="password"
+            value={next}
+            onChange={event => setNext(event.target.value)}
+            required
+          />
+        </label>
+        <label style={{ display: "flex", flexDirection: "column", gap: 6, flex: "1 1 180px" }}>
+          <span className="tn-label">Repeat new password</span>
+          <input
+            className="tn-input"
+            type="password"
+            value={confirm}
+            onChange={event => setConfirm(event.target.value)}
+            required
+          />
+        </label>
+        <button className="tn-btn" type="submit" disabled={busy}>
+          {busy ? "Saving" : "Change password"}
+        </button>
+      </form>
+      {message && <Note>{message}</Note>}
+    </Card>
+  );
+}
+
+/** Owners can set a password for anyone who has locked themselves out. */
+function OwnerPasswordCard() {
+  const setPassword = useAction(api.passwords.setPasswordForUser);
+  const [email, setEmail] = useState("");
+  const [next, setNext] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setBusy(true);
+    setMessage(null);
+    try {
+      await setPassword({ email: email.trim(), newPassword: next });
+      setNext("");
+      setMessage(`Password set for ${email.trim()}. Pass it on and ask them to change it.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not set the password.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card style={{ gap: 12 }}>
+      <SectionTitle>Set someone else's password</SectionTitle>
+      <Note>
+        For a person who is locked out. The account has to exist already, which
+        means they have signed in at least once.
+      </Note>
+      <form
+        onSubmit={submit}
+        style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "flex-end" }}
+      >
+        <label style={{ display: "flex", flexDirection: "column", gap: 6, flex: "1 1 220px" }}>
+          <span className="tn-label">Email</span>
+          <input
+            className="tn-input"
+            type="email"
+            value={email}
+            onChange={event => setEmail(event.target.value)}
+            placeholder="name@treenewal.com"
+            required
+          />
+        </label>
+        <label style={{ display: "flex", flexDirection: "column", gap: 6, flex: "1 1 200px" }}>
+          <span className="tn-label">New password</span>
+          <input
+            className="tn-input"
+            type="password"
+            value={next}
+            onChange={event => setNext(event.target.value)}
+            required
+          />
+        </label>
+        <button className="tn-btn" type="submit" disabled={busy}>
+          {busy ? "Saving" : "Set password"}
+        </button>
+      </form>
+      {message && <Note>{message}</Note>}
+    </Card>
+  );
+}
+
 export function AccessPage() {
   const me = useQuery(api.access.myAccess, {});
   const rows = useQuery(api.access.listAccess, {});
@@ -58,11 +199,12 @@ export function AccessPage() {
 
   if (me.role !== "owner") {
     return (
-      <div style={{ padding: 24 }}>
+      <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
         <Card>
           <SectionTitle>Access</SectionTitle>
           <Note>Only the owner can view and change access.</Note>
         </Card>
+        <PasswordCard />
       </div>
     );
   }
@@ -212,6 +354,9 @@ export function AccessPage() {
         </form>
         {message && <Note>{message}</Note>}
       </Card>
+
+      <PasswordCard />
+      <OwnerPasswordCard />
     </div>
   );
 }

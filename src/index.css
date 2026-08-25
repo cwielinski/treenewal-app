@@ -664,8 +664,20 @@
 /* The tiles are toned back so the pins carry the colour, matching the
    muted basemap in the approved design. */
 .leaflet-tile-pane { filter: grayscale(0.35) sepia(0.18) saturate(0.8) brightness(1.02) contrast(0.95); }
-.tn-map-panel .tn-seg { flex-wrap: nowrap; }
-.tn-map-panel .tn-seg-btn { padding: 6px 6px; letter-spacing: 0.02em; }
+/* The map panel is narrow, so the service line control shares its width
+   evenly and the longest label shrinks to fit rather than spilling over
+   the edge of the pill. */
+.tn-map-panel .tn-seg { flex-wrap: nowrap; width: 100%; }
+.tn-map-panel .tn-seg-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 6px 4px;
+  letter-spacing: 0.02em;
+  font-size: 11px;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 /* Narrow screens carry the two leading columns only, so the table stays
    readable instead of collapsing its headings together. */

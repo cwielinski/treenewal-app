@@ -6,6 +6,7 @@ import {
   isConsultation,
   lineFromClassName,
   lineFromClassNames,
+  segmentFromClientType,
   serviceTypeName,
 } from "./serviceLine";
 
@@ -99,6 +100,7 @@ type InvoiceRow = {
   lat?: number;
   lon?: number;
   clientName?: string;
+  segment?: "residential" | "commercial" | "government";
   valueExTax: number;
   total: number;
   paidTotal: number;
@@ -178,6 +180,7 @@ function toInvoice(row: Record<string, any>): InvoiceRow {
     lat: typeof address.lat === "number" ? address.lat : undefined,
     lon: typeof address.lon === "number" ? address.lon : undefined,
     clientName: optionalString(client.name),
+    segment: segmentFromClientType(client.type),
     valueExTax: exTax,
     total: withTax,
     paidTotal: num(totals.sum_payment_total),
@@ -272,6 +275,7 @@ export const upsertInvoices = internalMutation({
         lat: v.optional(v.number()),
         lon: v.optional(v.number()),
         clientName: v.optional(v.string()),
+        segment: v.optional(v.union(v.literal("residential"), v.literal("commercial"), v.literal("government"))),
         valueExTax: v.number(),
         total: v.number(),
         paidTotal: v.number(),

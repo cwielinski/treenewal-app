@@ -252,7 +252,7 @@ function JobMap({
   );
 }
 
-function Legend() {
+function Legend({ counts }: { counts?: Record<string, number> }) {
   return (
     <Card style={{ gap: 8 }}>
       <div className="tn-label">Legend</div>
@@ -286,6 +286,32 @@ function Legend() {
         <span className="tn-map-dash" />
         Paid ad radius, 15 miles
       </div>
+      {counts && (
+        <>
+          <div className="tn-label" style={{ marginTop: 4 }}>
+            Pins by customer
+          </div>
+          {(
+            [
+              ["residential", "Residential"],
+              ["commercial", "Commercial"],
+              ["government", "Government"],
+              ["unknown", "Not recorded"],
+            ] as const
+          )
+            .filter(([key]) => (counts[key] ?? 0) > 0)
+            .map(([key, label]) => (
+              <div
+                key={key}
+                className="tn-legend-row"
+                style={{ justifyContent: "space-between" }}
+              >
+                <span>{label}</span>
+                <span style={{ color: "var(--tn-fg-muted)" }}>{counts[key]}</span>
+              </div>
+            ))}
+        </>
+      )}
     </Card>
   );
 }
@@ -338,13 +364,13 @@ function CityList({
 }
 
 export function MapPage() {
-  const { period, line } = useDashboardState();
+  const { period, line, segment } = useDashboardState();
   const [minValue, setMinValue] = useState(0);
   const [mapLine, setMapLine] = useState<"all" | "production" | "phc">("all");
   const [city, setCity] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
 
-  const data = useQuery(api.mapScreen.map, { period, line, minValue });
+  const data = useQuery(api.mapScreen.map, { period, line, minValue, segment });
 
   // The screen level service line filter and the on map one compose: the
   // header filter decides what the screen is about, the map one narrows it.
@@ -474,7 +500,7 @@ export function MapPage() {
             )}
           </Card>
           <Card style={{ gap: 8 }}>{filters}</Card>
-          <Legend />
+          <Legend counts={data.segmentCounts} />
           <CityList cities={cities} selected={city} onSelect={setCity} />
         </div>
         <div className="tn-map-canvas">
