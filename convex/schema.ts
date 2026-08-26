@@ -208,6 +208,29 @@ const schema = defineSchema({
     updatedAt: v.number(),
   }).index("by_month", ["month"]),
 
+  /**
+   * In app chat. One document per conversation, owned by the person who
+   * started it. Conversations are private to that person: the answers can
+   * carry payroll and receivables, so they are never shared.
+   */
+  chatThreads: defineTable({
+    userId: v.id("users"),
+    title: v.string(),
+    category: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_user_and_updated", ["userId", "updatedAt"]),
+
+  chatMessages: defineTable({
+    threadId: v.id("chatThreads"),
+    userId: v.id("users"),
+    author: v.union(v.literal("person"), v.literal("viktor")),
+    text: v.string(),
+    /** Set when the answer failed, so the interface can say so plainly. */
+    failed: v.optional(v.boolean()),
+    createdAt: v.number(),
+  }).index("by_thread", ["threadId", "createdAt"]),
+
   /** One row per source, so the header can show a real last refresh time. */
   syncState: defineTable({
     source: v.string(), // arbostar | quickbooks

@@ -286,6 +286,12 @@ export function GuidePage() {
         intro="Money in, money out and who owes you. Receivables come from invoices and are live. The rest waits on QuickBooks."
         rows={[
           {
+            figure: "Ask, the in app chat",
+            source: "ArboStar and QuickBooks",
+            made: "Questions are answered from a snapshot of the same stored figures the screens read, cut down to the screens your account is allowed to see. It is not given the raw databases and it is told never to invent a number it was not handed. Small differences against a screen are possible where a screen applies an extra rule, so treat a screen as the record. Conversations are private to your account and can be renamed and grouped into categories.",
+            controls: "None. The period and service line pickers do not change an answer, so say the period in the question.",
+          },
+          {
             figure: "Thirteen week cash forecast",
             source: "ArboStar and QuickBooks",
             made: "Money in is the open receivable, aged and run through the payment timing of the last twelve months, plus the work the crews are expected to invoice at the recent twenty six week rate, tilted by how each calendar month has run for the last two years, and collected on the same timing. Money out is the trailing twelve month run rate split into payroll, other job cost, operating cost and debt service. Payroll lands fortnightly and bills land unevenly, so the shape of the quarter is more reliable than any single week. It is not a budget, it is what the last year would do again.",

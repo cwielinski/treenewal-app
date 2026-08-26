@@ -26,6 +26,9 @@ const NAV = [
   { to: "/map", label: "Map", screen: "map" as const },
   { to: "/cash", label: "Cash", screen: "cash" as const },
   { to: "/marketing", label: "Marketing", screen: "marketing" as const },
+  // Open to anyone who can see any screen. The answers themselves are cut
+  // down to what the person is allowed to see, in Convex.
+  { to: "/chat", label: "Ask", screen: null },
 ];
 
 function RefreshButton() {
@@ -234,7 +237,11 @@ function ShellInner() {
   const lastRefresh = useLastRefresh();
   const location = useLocation();
 
-  const visibleNav = NAV.filter(item => access?.screens?.[item.screen]);
+  const visibleNav = NAV.filter(item =>
+    item.screen === null
+      ? Object.values(access?.screens ?? {}).some(Boolean)
+      : access?.screens?.[item.screen],
+  );
   // Access settings are owner only, and sit after the five screen links.
   const showAccess = access?.role === "owner";
 

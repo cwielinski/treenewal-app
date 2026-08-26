@@ -84,6 +84,21 @@ export async function requireScreen(
 }
 
 /** What the signed in person may see, used to build the navigation. */
+/** Screens for a user id, for server side callers that are not a request. */
+export type Screens = Record<ScreenKey, boolean>;
+
+export async function screensFor(
+  ctx: QueryCtx,
+  userId: Id<"users">,
+): Promise<Screens> {
+  const row = await accessRowFor(ctx, userId);
+  if (row) return row.screens;
+  const user = await ctx.db.get(userId);
+  const email = user?.email?.toLowerCase() ?? "";
+  if (SEEDED_OWNERS.includes(email)) return { ...ROLE_SCREENS.owner };
+  return { ...ROLE_SCREENS.none };
+}
+
 export const myAccess = authenticatedQuery({
   args: {},
   returns: v.object({
