@@ -21,7 +21,7 @@ type QbRow = {
   type?: string;
 };
 
-type QbReport = { Rows?: { Row?: QbRow[] } };
+export type QbReport = { Rows?: { Row?: QbRow[] } };
 
 function toNumber(value: string | undefined): number | undefined {
   if (value === undefined || value === null || value === "") return undefined;
@@ -62,7 +62,7 @@ function findRow(
   return undefined;
 }
 
-function amountFor(
+export function amountFor(
   report: QbReport,
   match: (label: string, group: string) => boolean,
 ): number | undefined {
@@ -71,7 +71,7 @@ function amountFor(
 }
 
 /** Sum every leaf row whose label matches, used for payroll style groupings. */
-function sumMatching(report: QbReport | QbRow, needles: string[]): number {
+export function sumMatching(report: QbReport | QbRow, needles: string[]): number {
   let total = 0;
   const rows = report.Rows?.Row ?? [];
   for (const row of rows) {
@@ -85,7 +85,7 @@ function sumMatching(report: QbReport | QbRow, needles: string[]): number {
   return total;
 }
 
-async function profitAndLoss(
+export async function profitAndLoss(
   start: string,
   end: string,
   method: "Accrual" | "Cash" = "Accrual",

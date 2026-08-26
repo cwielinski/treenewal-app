@@ -14,6 +14,7 @@ import {
   TargetBand,
 } from "./components";
 import { SourceFreshness } from "./Freshness";
+import { ClassProfit } from "./ClassProfit";
 import { useDashboardState } from "./dashboardState";
 import { count, lineName, money, percent, rangeLabel, shortDate, weeks } from "./format";
 
@@ -242,7 +243,7 @@ export function OverviewPage() {
           </Note>
           <Note>
             {totalLineValue > 0
-              ? `Plant Health Care is ${((phc.jobValue / totalLineValue) * 100).toFixed(0)}% of invoiced value this period. Gross profit by line follows once the QuickBooks classes are mapped to the two service lines.`
+              ? `Plant Health Care is ${((phc.jobValue / totalLineValue) * 100).toFixed(0)}% of invoiced value this period. Profit by class is below.`
               : "No closed jobs in this period yet."}
           </Note>
         </Card>
@@ -306,6 +307,8 @@ export function OverviewPage() {
           <Note>{money(pipeline.openValueProposed)} proposed and still open.</Note>
         </Card>
       </div>
+
+      <ClassProfit />
 
       {/* ---- cash and obligations */}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -486,7 +489,9 @@ function ServiceLineRow({
             Margin
           </div>
           {marginAvailable ? (
-            <div style={{ fontSize: 20, fontWeight: 700, lineHeight: 1 }}>Not yet mapped</div>
+            <div style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.2 }}>
+              Shown by class below
+            </div>
           ) : (
             <Pending label="Awaiting QuickBooks" />
           )}

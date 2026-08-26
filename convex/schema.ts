@@ -187,6 +187,27 @@ const schema = defineSchema({
     revenue: v.optional(v.number()),
   }).index("by_month_and_channel", ["month", "channel"]),
 
+  /**
+   * Revenue and direct cost per QuickBooks class, one document per calendar
+   * month. Any period on the screen is a sum of these months, so a year to
+   * date view costs one read per month rather than a fresh scrape.
+   */
+  classMonthly: defineTable({
+    month: v.string(), // YYYY-MM
+    /** Profit and loss control totals for the same month. */
+    totalRevenue: v.optional(v.number()),
+    totalDirectCost: v.optional(v.number()),
+    overhead: v.optional(v.number()),
+    rows: v.array(
+      v.object({
+        className: v.string(),
+        revenue: v.number(),
+        directCost: v.number(),
+      }),
+    ),
+    updatedAt: v.number(),
+  }).index("by_month", ["month"]),
+
   /** One row per source, so the header can show a real last refresh time. */
   syncState: defineTable({
     source: v.string(), // arbostar | quickbooks

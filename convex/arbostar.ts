@@ -435,6 +435,12 @@ export const syncAll = internalAction({
     await ctx.scheduler.runAfter(0, internal.leads.syncLeadsPage, { mode: leadMode });
     await ctx.scheduler.runAfter(0, internal.leadSheet.syncLeadSheet, {});
     await ctx.scheduler.runAfter(0, internal.quickbooks.syncFinance, {});
+    // Profit by class is stored a month at a time. The current and previous
+    // month are rebuilt on every refresh; older months are only built once,
+    // so a fresh deployment fills its own thirteen month history.
+    await ctx.scheduler.runAfter(0, internal.classMargin.syncRecentMonths, {
+      count: 13,
+    });
     return null;
   },
 });
