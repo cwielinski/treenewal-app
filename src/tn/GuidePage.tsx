@@ -205,6 +205,18 @@ export function GuidePage() {
             controls: PERIOD_LINE,
           },
           {
+            figure: "Profit by type of work",
+            source: "QuickBooks",
+            made: "Revenue and direct cost read from the class tag on each QuickBooks line, since QuickBooks publishes no profit and loss broken out by class. Direct cost is what sits in cost of goods sold for that class. Anything untagged is shown on its own row, so the rows add up to the revenue and gross profit at the top of the screen.",
+            controls: "Period",
+          },
+          {
+            figure: "Profit by type of work, with overhead",
+            source: "QuickBooks",
+            made: "The same rows with operating expenses spread across the classes by share of revenue. Office and sales costs are not tagged to a class in QuickBooks, so this is an allocation rather than a measurement. Owner guaranteed payments are excluded, since they are draws rather than a cost the work has to carry. Trailing twelve months here means twelve calendar months.",
+            controls: "Period",
+          },
+          {
             figure: "Where the work is coming from",
             source: "ArboStar",
             made: "The same closed invoices grouped by the city on the job address. A demand view only. It is never used to split margin or capacity.",
@@ -273,6 +285,12 @@ export function GuidePage() {
         title="Cash"
         intro="Money in, money out and who owes you. Receivables come from invoices and are live. The rest waits on QuickBooks."
         rows={[
+          {
+            figure: "Thirteen week cash forecast",
+            source: "ArboStar and QuickBooks",
+            made: "Money in is the open receivable, aged and run through the payment timing of the last twelve months, plus the work the crews are expected to invoice at the recent twenty six week rate, tilted by how each calendar month has run for the last two years, and collected on the same timing. Money out is the trailing twelve month run rate split into payroll, other job cost, operating cost and debt service. Payroll lands fortnightly and bills land unevenly, so the shape of the quarter is more reliable than any single week. It is not a budget, it is what the last year would do again.",
+            controls: "None. The forecast is company wide.",
+          },
           {
             figure: "Receivables",
             source: "ArboStar",

@@ -1,4 +1,5 @@
 import { useQuery } from "convex/react";
+import { CashForecast } from "./CashForecast";
 import { api } from "../../convex/_generated/api";
 import {
   AttentionBar,
@@ -263,14 +264,7 @@ export function CashPage() {
         </div>
       </div>
 
-      <Card>
-        <SectionTitle>Thirteen week cash forecast</SectionTitle>
-        <Note>
-          Scheduled work, expected collection timing and recurring costs. Both
-          sides are now available, collections from invoice history and costs
-          from QuickBooks. Being built next.
-        </Note>
-      </Card>
+      <CashForecast />
 
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         <Note>
