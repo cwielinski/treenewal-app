@@ -2,16 +2,11 @@ import { Navigate, Route, Routes } from "react-router";
 import { OAUTH_CALLBACK_PATH } from "@/auth/oauthReturn";
 import { AppLayout } from "@/components/AppLayout";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { PublicLayout } from "@/components/PublicLayout";
 import { PublicOnlyRoute } from "@/components/PublicOnlyRoute";
 import { ViktorAutoSignIn } from "@/components/ViktorAutoSignIn";
 import { ViktorProductAuthProvider } from "@/lib/viktor-spaces-access/ViktorProductAuthProvider";
-import {
-  LandingPage,
-  LoginPage,
-  SettingsPage,
-  SignupPage,
-} from "@/pages";
+import { SettingsPage } from "@/pages";
+import { TnSignIn, TnSignUp } from "@/tn/TnSignIn";
 import { OverviewPage } from "@/tn/OverviewPage";
 import { JobsPage } from "@/tn/JobsPage";
 import { AccessPage } from "@/tn/AccessPage";
@@ -25,12 +20,12 @@ import { ViktorOAuthCallbackPage } from "@/pages/ViktorOAuthCallbackPage";
 export function AuthenticatedRoutes() {
   return (
     <Routes>
-      <Route element={<PublicLayout />}>
-        <Route path="/" element={<LandingPage />} />
-        <Route element={<PublicOnlyRoute />}>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/signup" element={<SignupPage />} />
-        </Route>
+      {/* No marketing landing page. The root goes straight to the dashboard,
+          and the route guard sends signed out visitors to the sign in screen. */}
+      <Route path="/" element={<Navigate to="/overview" replace />} />
+      <Route element={<PublicOnlyRoute />}>
+        <Route path="/login" element={<TnSignIn />} />
+        <Route path="/signup" element={<TnSignUp />} />
       </Route>
 
       {/* Return leg of "Sign in with Viktor" — outside the auth guards

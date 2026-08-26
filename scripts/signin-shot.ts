@@ -1,0 +1,16 @@
+import { chromium } from "playwright";
+const APP_URL = process.env.APP_URL ?? "http://localhost:4174";
+const browser = await chromium.launch();
+const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+await page.goto(`${APP_URL}/login`);
+await page.waitForTimeout(2500);
+await page.screenshot({ path: "/tmp/signin.png" });
+await page.setViewportSize({ width: 390, height: 844 });
+await page.waitForTimeout(800);
+await page.screenshot({ path: "/tmp/signin-mobile.png" });
+await page.goto(`${APP_URL}/signup`);
+await page.setViewportSize({ width: 1440, height: 900 });
+await page.waitForTimeout(1500);
+await page.screenshot({ path: "/tmp/signup.png" });
+await browser.close();
+console.log("ok");
